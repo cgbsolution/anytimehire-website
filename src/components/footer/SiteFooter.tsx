@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { Mail } from "lucide-react";
 
 const COLUMNS = [
   {
@@ -48,6 +49,15 @@ export function SiteFooter() {
               AI-led interviews that surface the right candidates — without the
               bias, the backlog, or the back-and-forth.
             </p>
+            <a
+              href="mailto:info@anytimehire.ai"
+              className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-ink-700 transition-colors hover:text-brand-700 dark:text-ink-300 dark:hover:text-brand-300"
+            >
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600 ring-1 ring-brand-100 dark:bg-brand-500/15 dark:text-brand-300 dark:ring-brand-500/30">
+                <Mail className="h-4 w-4" />
+              </span>
+              info@anytimehire.ai
+            </a>
           </div>
           {COLUMNS.map((col) => (
             <div key={col.title}>

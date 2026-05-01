@@ -643,12 +643,6 @@ function ConfirmedStep({
           className="inline-flex h-11 items-center gap-2 rounded-full bg-ink-900 px-5 text-[14px] font-semibold text-white transition-all hover:bg-ink-800 dark:bg-ink-50 dark:text-ink-900 dark:hover:bg-white"
         >
           Back to home
-        </Link>
-        <Link
-          href="/landing"
-          className="inline-flex h-11 items-center gap-2 rounded-full border border-ink-200 bg-white px-5 text-[14px] font-semibold text-ink-900 transition-all hover:bg-ink-50 dark:border-ink-800 dark:bg-ink-900 dark:text-ink-50 dark:hover:bg-ink-800"
-        >
-          Back to landing
           <ArrowRight className="h-4 w-4" />
         </Link>
       </div>

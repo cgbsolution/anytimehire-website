@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { LinkButton } from "@/components/ui/Button";
 import { ModeToggle } from "@/components/theme/ModeToggle";
@@ -12,6 +13,12 @@ const LINKS = [
   { href: "/#product", label: "Product" },
   { href: "/#pricing", label: "Pricing" },
   { href: "/demo", label: "Demo" },
+  {
+    href: "/lp/ai-recruitment-software",
+    label: "Free Credits",
+    icon: Sparkles,
+    accent: true,
+  },
 ];
 
 export function SiteNav() {
@@ -46,15 +53,30 @@ export function SiteNav() {
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
-          {LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="rounded-full px-3.5 py-2 text-sm text-ink-700 transition-colors hover:bg-ink-100 hover:text-ink-900 dark:text-ink-300 dark:hover:bg-ink-800 dark:hover:text-ink-50"
-            >
-              {link.label}
-            </Link>
-          ))}
+          {LINKS.map((link) => {
+            const Icon = link.icon;
+            if (link.accent) {
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3.5 py-2 text-sm font-semibold text-brand-700 ring-1 ring-brand-200 transition-colors hover:bg-brand-100 dark:bg-brand-500/15 dark:text-brand-300 dark:ring-brand-500/30 dark:hover:bg-brand-500/25"
+                >
+                  {Icon && <Icon className="h-3.5 w-3.5" />}
+                  {link.label}
+                </Link>
+              );
+            }
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="rounded-full px-3.5 py-2 text-sm text-ink-700 transition-colors hover:bg-ink-100 hover:text-ink-900 dark:text-ink-300 dark:hover:bg-ink-800 dark:hover:text-ink-50"
+              >
+                {link.label}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="flex items-center gap-1.5">

@@ -14,14 +14,12 @@ export function ContactSection() {
           <div>
             <SectionLabel>Talk to us</SectionLabel>
             <h2 className="mt-4 text-balance font-display text-4xl font-semibold tracking-tight text-ink-900 dark:text-ink-50 sm:text-[42px] sm:leading-[1.1]">
-              Tell us about your hiring,
-              <br className="hidden sm:block" />
-              we'll write back today.
+              Start Hiring Smarter — Get a Free Demo Today
             </h2>
             <p className="mt-5 max-w-md text-[17px] leading-relaxed text-ink-600 dark:text-ink-400">
-              Drop your details and a quick note about what you're hiring for.
-              An AnytimeHire specialist will reach out within 2 business hours
-              with a tailored walkthrough — no auto-replies, no slide decks.
+              Tell us your hiring challenge. An AnytimeHire specialist will
+              reach out within 2 hours with a live walkthrough — no scripts, no
+              sales pitch.
             </p>
 
             <ul className="mt-8 space-y-4 text-[14px]">
@@ -30,7 +28,10 @@ export function ContactSection() {
                   <ShieldCheck className="h-4 w-4" />
                 </span>
                 <span>
-                  Replies in <strong className="text-ink-900 dark:text-ink-50">under 2 hours</strong> on weekdays
+                  Response guaranteed in{" "}
+                  <strong className="text-ink-900 dark:text-ink-50">
+                    under 2 hours
+                  </strong>
                 </span>
               </li>
               <li className="flex items-center gap-3 text-ink-700 dark:text-ink-300">
@@ -38,10 +39,10 @@ export function ContactSection() {
                   <Mail className="h-4 w-4" />
                 </span>
                 <a
-                  href="mailto:rishabh.negi@artboxsolutions.com"
+                  href="mailto:info@anytimehire.ai"
                   className="hover:text-ink-900 dark:hover:text-ink-50"
                 >
-                  rishabh.negi@artboxsolutions.com
+                  info@anytimehire.ai
                 </a>
               </li>
               <li className="flex items-center gap-3 text-ink-700 dark:text-ink-300">
@@ -126,10 +127,10 @@ function ContactForm() {
               <ShieldCheck className="h-6 w-6" />
             </div>
             <p className="mt-4 font-display text-lg font-semibold text-emerald-900 dark:text-emerald-200">
-              Message received.
+              Got it. We'll be in touch within 2 hours.
             </p>
             <p className="mt-2 text-sm text-emerald-800/80 dark:text-emerald-300/80">
-              We'll be in touch within 2 business hours.
+              A confirmation has been sent to your inbox.
             </p>
             <button
               onClick={() => setDone(false)}
@@ -142,10 +143,10 @@ function ContactForm() {
           <form onSubmit={onSubmit} className="space-y-4">
             <div>
               <h3 className="font-display text-xl font-semibold tracking-tight text-ink-900 dark:text-ink-50">
-                Send us a note
+                Book Your Free Demo
               </h3>
               <p className="mt-1 text-sm text-ink-600 dark:text-ink-400">
-                We'll reply with next steps and a Google Meet link.
+                Get a personalised walkthrough in under 2 hours.
               </p>
             </div>
 
@@ -159,6 +160,20 @@ function ContactForm() {
             />
             <Field label="Phone" name="phone" type="tel" placeholder="+91 98XXX XXXXX" />
 
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field
+                label="Company"
+                name="company"
+                placeholder="Your company name"
+                required
+              />
+              <SelectField
+                label="Company size"
+                name="company_size"
+                options={["1–50", "51–200", "201–1,000", "1,000+"]}
+              />
+            </div>
+
             <div>
               <label
                 htmlFor="home-message"
@@ -171,7 +186,7 @@ function ContactForm() {
                 name="message"
                 rows={4}
                 required
-                placeholder="Roles you're hiring, volume, current ATS…"
+                placeholder="Tell us your current hiring challenge..."
                 className="mt-1.5 w-full rounded-xl border border-ink-200 bg-white p-3 text-[14px] text-ink-900 outline-none transition-colors placeholder:text-ink-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-ink-800 dark:bg-ink-950 dark:text-ink-50 dark:placeholder:text-ink-500"
               />
             </div>
@@ -185,7 +200,7 @@ function ContactForm() {
               disabled={submitting}
               className="group inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand-600 px-6 text-[15px] font-semibold text-white shadow-[0_1px_2px_rgba(10,41,34,0.08),0_0_0_1px_rgba(12,124,90,0.4)_inset] transition-all hover:bg-brand-700 hover:shadow-[0_10px_28px_-8px_rgba(12,124,90,0.5)] disabled:opacity-60"
             >
-              {submitting ? "Sending…" : "Send message"}
+              {submitting ? "Sending…" : "Get My Free Demo"}
               {!submitting && (
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               )}
@@ -234,6 +249,46 @@ function Field({
         required={required}
         className="mt-1.5 h-11 w-full rounded-xl border border-ink-200 bg-white px-3 text-[14px] text-ink-900 outline-none transition-colors placeholder:text-ink-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-ink-800 dark:bg-ink-950 dark:text-ink-50 dark:placeholder:text-ink-500"
       />
+    </div>
+  );
+}
+
+function SelectField({
+  label,
+  name,
+  options,
+  required,
+}: {
+  label: string;
+  name: string;
+  options: string[];
+  required?: boolean;
+}) {
+  return (
+    <div>
+      <label
+        htmlFor={`home-${name}`}
+        className="block text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-500 dark:text-ink-400"
+      >
+        {label}
+        {required && <span className="ml-1 text-rose-500">*</span>}
+      </label>
+      <select
+        id={`home-${name}`}
+        name={name}
+        defaultValue=""
+        required={required}
+        className="mt-1.5 h-11 w-full rounded-xl border border-ink-200 bg-white px-3 text-[14px] text-ink-900 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-ink-800 dark:bg-ink-950 dark:text-ink-50"
+      >
+        <option value="" disabled>
+          Select…
+        </option>
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
