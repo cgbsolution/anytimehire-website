@@ -150,6 +150,19 @@ function ContactForm() {
           required
         />
       </div>
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field
+          label="Company"
+          name="company"
+          placeholder="Your company name"
+          required
+        />
+        <SelectField
+          label="Company size"
+          name="company_size"
+          options={["1–50", "51–200", "201–1,000", "1,000+"]}
+        />
+      </div>
       <div className="mt-3">
         <label
           htmlFor="lp-message"
@@ -212,6 +225,46 @@ function Field({
         required={required}
         className="mt-1.5 h-11 w-full rounded-xl border border-white/20 bg-white/10 px-3 text-[14px] text-white placeholder:text-white/50 outline-none transition-colors focus:border-white focus:bg-white/15 focus:ring-2 focus:ring-white/30"
       />
+    </div>
+  );
+}
+
+function SelectField({
+  label,
+  name,
+  options,
+  required,
+}: {
+  label: string;
+  name: string;
+  options: string[];
+  required?: boolean;
+}) {
+  return (
+    <div>
+      <label
+        htmlFor={`lp-${name}`}
+        className="block text-[11px] font-semibold uppercase tracking-[0.1em] text-white/80"
+      >
+        {label}
+        {required && <span className="ml-1 text-rose-200">*</span>}
+      </label>
+      <select
+        id={`lp-${name}`}
+        name={name}
+        defaultValue=""
+        required={required}
+        className="mt-1.5 h-11 w-full appearance-none rounded-xl border border-white/20 bg-white/10 px-3 text-[14px] text-white outline-none transition-colors focus:border-white focus:bg-white/15 focus:ring-2 focus:ring-white/30 [&>option]:text-ink-900"
+      >
+        <option value="" disabled className="text-ink-400">
+          Select…
+        </option>
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

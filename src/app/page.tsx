@@ -9,6 +9,7 @@ import { ScoringSection } from "@/components/landing/ScoringSection";
 import { Comparison } from "@/components/landing/Comparison";
 import { Testimonial } from "@/components/landing/Testimonial";
 import { FAQ } from "@/components/landing/FAQ";
+import { ContactSection } from "@/components/landing/ContactSection";
 import { FinalCTA } from "@/components/landing/FinalCTA";
 
 export default function HomePage() {
@@ -25,6 +26,7 @@ export default function HomePage() {
         <Comparison />
         <Testimonial />
         <FAQ />
+        <ContactSection />
         <FinalCTA />
       </main>
       <SiteFooter />

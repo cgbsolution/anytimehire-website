@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -14,42 +14,33 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 
 type Step = "datetime" | "details" | "confirmed";
 
-const TIME_SLOTS = [
-  "09:00 AM",
-  "09:30 AM",
-  "10:00 AM",
-  "10:30 AM",
-  "11:00 AM",
-  "11:30 AM",
-  "01:00 PM",
-  "01:30 PM",
-  "02:00 PM",
-  "02:30 PM",
-  "03:00 PM",
-  "03:30 PM",
-  "04:00 PM",
-  "04:30 PM",
-];
+type Slot = {
+  startsAt: string; // ISO
+  endsAt: string;
+  label: string;
+  available: boolean;
+};
 
-const TIMEZONES = [
-  "Asia/Kolkata (IST)",
-  "Asia/Singapore (SGT)",
-  "Asia/Dubai (GST)",
-  "Europe/London (BST)",
-  "America/New_York (EST)",
-  "America/Los_Angeles (PST)",
+const TIMEZONES: { iana: string; label: string }[] = [
+  { iana: "Asia/Kolkata", label: "Asia/Kolkata (IST)" },
+  { iana: "Asia/Singapore", label: "Asia/Singapore (SGT)" },
+  { iana: "Asia/Dubai", label: "Asia/Dubai (GST)" },
+  { iana: "Europe/London", label: "Europe/London (BST)" },
+  { iana: "America/New_York", label: "America/New_York (EST)" },
+  { iana: "America/Los_Angeles", label: "America/Los_Angeles (PST)" },
 ];
 
 export function BookingFlow() {
   const [step, setStep] = useState<Step>("datetime");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [timezone, setTimezone] = useState(TIMEZONES[0]);
+  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
+  const [timezone, setTimezone] = useState(TIMEZONES[0].iana);
   const [confirmation, setConfirmation] = useState<{
     name: string;
     email: string;
@@ -117,7 +108,7 @@ export function BookingFlow() {
       <div className="mt-10 grid gap-6 lg:grid-cols-[340px_1fr]">
         <SummaryCard
           selectedDate={selectedDate}
-          selectedTime={selectedTime}
+          selectedSlot={selectedSlot}
           timezone={timezone}
           confirmation={confirmation}
         />
@@ -136,17 +127,17 @@ export function BookingFlow() {
                   selectedDate={selectedDate}
                   setSelectedDate={(d) => {
                     setSelectedDate(d);
-                    setSelectedTime(null);
+                    setSelectedSlot(null);
                   }}
-                  selectedTime={selectedTime}
-                  setSelectedTime={setSelectedTime}
+                  selectedSlot={selectedSlot}
+                  setSelectedSlot={setSelectedSlot}
                   timezone={timezone}
                   setTimezone={setTimezone}
                   onContinue={() => setStep("details")}
                 />
               </motion.div>
             )}
-            {step === "details" && (
+            {step === "details" && selectedSlot && (
               <motion.div
                 key="details"
                 initial={{ opacity: 0, y: 10 }}
@@ -156,8 +147,7 @@ export function BookingFlow() {
               >
                 <DetailsStep
                   onBack={() => setStep("datetime")}
-                  selectedDate={selectedDate!}
-                  selectedTime={selectedTime!}
+                  selectedSlot={selectedSlot}
                   timezone={timezone}
                   onConfirmed={(data) => {
                     setConfirmation(data);
@@ -186,15 +176,18 @@ export function BookingFlow() {
 
 function SummaryCard({
   selectedDate,
-  selectedTime,
+  selectedSlot,
   timezone,
   confirmation,
 }: {
   selectedDate: Date | null;
-  selectedTime: string | null;
+  selectedSlot: Slot | null;
   timezone: string;
   confirmation: { name: string; email: string; date: string; time: string } | null;
 }) {
+  const tzLabel =
+    TIMEZONES.find((t) => t.iana === timezone)?.label ?? timezone;
+
   return (
     <aside className="rounded-3xl border border-ink-200 bg-gradient-to-br from-cream-50 to-white p-6 dark:border-ink-800 dark:from-ink-900 dark:to-ink-950">
       <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-600 dark:text-ink-400">
@@ -218,14 +211,14 @@ function SummaryCard({
         </li>
         <li className="flex items-center gap-2.5 text-ink-700 dark:text-ink-300">
           <Globe className="h-4 w-4 text-brand-600" />
-          {timezone}
+          {tzLabel}
         </li>
         <li className="flex items-center gap-2.5 text-ink-700 dark:text-ink-300">
           <CalendarDays className="h-4 w-4 text-brand-600" />
           {confirmation
             ? `${confirmation.date} · ${confirmation.time}`
-            : selectedDate && selectedTime
-              ? `${formatLong(selectedDate)} · ${selectedTime}`
+            : selectedDate && selectedSlot
+              ? `${formatLong(selectedDate)} · ${selectedSlot.label}`
               : "Pick a slot →"}
         </li>
       </ul>
@@ -246,16 +239,16 @@ function SummaryCard({
 function DateTimeStep({
   selectedDate,
   setSelectedDate,
-  selectedTime,
-  setSelectedTime,
+  selectedSlot,
+  setSelectedSlot,
   timezone,
   setTimezone,
   onContinue,
 }: {
   selectedDate: Date | null;
   setSelectedDate: (d: Date | null) => void;
-  selectedTime: string | null;
-  setSelectedTime: (t: string | null) => void;
+  selectedSlot: Slot | null;
+  setSelectedSlot: (s: Slot | null) => void;
   timezone: string;
   setTimezone: (t: string) => void;
   onContinue: () => void;
@@ -264,9 +257,43 @@ function DateTimeStep({
   const [viewMonth, setViewMonth] = useState<Date>(
     new Date(today.getFullYear(), today.getMonth(), 1),
   );
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
 
   const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
-  const canContinue = !!selectedDate && !!selectedTime;
+  const canContinue = !!selectedDate && !!selectedSlot;
+
+  // Fetch live availability whenever the chosen date changes
+  useEffect(() => {
+    let cancelled = false;
+    if (!selectedDate) {
+      setSlots([]);
+      return;
+    }
+    const dateStr = toIsoDate(selectedDate);
+    setLoadingSlots(true);
+    setSlotsError(null);
+    fetch(`/api/bookings/availability?date=${dateStr}`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return (await r.json()) as { slots: Slot[] };
+      })
+      .then((j) => {
+        if (cancelled) return;
+        setSlots(j.slots ?? []);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        console.error("[booking] availability error", e);
+        setSlotsError("Couldn't load slots. Please try again.");
+        setSlots([]);
+      })
+      .finally(() => !cancelled && setLoadingSlots(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDate]);
 
   return (
     <div className="grid gap-6 md:grid-cols-[1fr_240px]">
@@ -356,7 +383,9 @@ function DateTimeStep({
             className="mt-1.5 h-11 w-full rounded-xl border border-ink-200 bg-white px-3 text-[14px] text-ink-900 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-ink-800 dark:bg-ink-950 dark:text-ink-50"
           >
             {TIMEZONES.map((tz) => (
-              <option key={tz}>{tz}</option>
+              <option key={tz.iana} value={tz.iana}>
+                {tz.label}
+              </option>
             ))}
           </select>
         </div>
@@ -367,29 +396,55 @@ function DateTimeStep({
           {selectedDate ? formatShort(selectedDate) : "Pick a date first"}
         </h4>
         <div className="mt-3 max-h-[320px] space-y-1.5 overflow-y-auto pr-1">
-          {selectedDate ? (
-            TIME_SLOTS.map((slot) => {
-              const active = slot === selectedTime;
-              return (
-                <button
-                  key={slot}
-                  type="button"
-                  onClick={() => setSelectedTime(slot)}
-                  className={`w-full rounded-xl border px-4 py-2.5 text-left text-[14px] font-medium transition-all ${
-                    active
-                      ? "border-brand-500 bg-brand-50 text-brand-700 dark:border-brand-500/50 dark:bg-brand-500/15 dark:text-brand-200"
-                      : "border-ink-200 text-ink-800 hover:border-brand-400 hover:bg-brand-50/50 dark:border-ink-800 dark:text-ink-200 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10"
-                  }`}
-                >
-                  {slot}
-                </button>
-              );
-            })
-          ) : (
+          {!selectedDate && (
             <div className="rounded-xl border border-dashed border-ink-200 p-5 text-center text-[13px] text-ink-500 dark:border-ink-800 dark:text-ink-400">
               Select an available date to see open slots.
             </div>
           )}
+          {selectedDate && loadingSlots && (
+            <div className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-ink-200 p-5 text-[13px] text-ink-500 dark:border-ink-800 dark:text-ink-400">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Loading available slots…
+            </div>
+          )}
+          {selectedDate && !loadingSlots && slotsError && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-center text-[13px] text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+              {slotsError}
+            </div>
+          )}
+          {selectedDate && !loadingSlots && !slotsError && slots.length === 0 && (
+            <div className="rounded-xl border border-dashed border-ink-200 p-5 text-center text-[13px] text-ink-500 dark:border-ink-800 dark:text-ink-400">
+              No slots available for this day. Try another date.
+            </div>
+          )}
+          {selectedDate && !loadingSlots && !slotsError &&
+            slots.map((slot) => {
+              const active =
+                selectedSlot && selectedSlot.startsAt === slot.startsAt;
+              const disabled = !slot.available;
+              return (
+                <button
+                  key={slot.startsAt}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => setSelectedSlot(slot)}
+                  className={`flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-left text-[14px] font-medium transition-all ${
+                    disabled
+                      ? "cursor-not-allowed border-ink-200 bg-ink-50 text-ink-400 line-through dark:border-ink-800 dark:bg-ink-950 dark:text-ink-600"
+                      : active
+                        ? "border-brand-500 bg-brand-50 text-brand-700 dark:border-brand-500/50 dark:bg-brand-500/15 dark:text-brand-200"
+                        : "border-ink-200 text-ink-800 hover:border-brand-400 hover:bg-brand-50/50 dark:border-ink-800 dark:text-ink-200 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10"
+                  }`}
+                >
+                  <span>{slot.label}</span>
+                  {disabled && (
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">
+                      Taken
+                    </span>
+                  )}
+                </button>
+              );
+            })}
         </div>
 
         <button
@@ -408,14 +463,12 @@ function DateTimeStep({
 
 function DetailsStep({
   onBack,
-  selectedDate,
-  selectedTime,
+  selectedSlot,
   timezone,
   onConfirmed,
 }: {
   onBack: () => void;
-  selectedDate: Date;
-  selectedTime: string;
+  selectedSlot: Slot;
   timezone: string;
   onConfirmed: (data: {
     name: string;
@@ -438,14 +491,16 @@ function DetailsStep({
     >;
 
     try {
-      const res = await fetch("/api/contact", {
+      const res = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...data,
-          source: "booking",
-          date: formatLong(selectedDate),
-          time: selectedTime,
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          company: data.company,
+          message: data.message,
+          starts_at: selectedSlot.startsAt,
           timezone,
         }),
       });
@@ -453,11 +508,13 @@ function DetailsStep({
         const j = await res.json().catch(() => ({}));
         throw new Error(j.error || "Could not save your booking");
       }
+
+      const startsAtDate = new Date(selectedSlot.startsAt);
       onConfirmed({
         name: data.name,
         email: data.email,
-        date: formatLong(selectedDate),
-        time: selectedTime,
+        date: formatLong(startsAtDate),
+        time: selectedSlot.label,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -635,6 +692,13 @@ function Field({
 
 function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function toIsoDate(d: Date) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function buildMonthGrid(monthAnchor: Date): (Date | null)[] {

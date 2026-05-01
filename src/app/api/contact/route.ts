@@ -1,23 +1,24 @@
 import { NextResponse } from "next/server";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { sendMail } from "@/lib/email";
 
-const TO_EMAIL = "rishabh.negi@artboxsolutions.com";
-const FROM_EMAIL =
-  process.env.LEAD_FROM_EMAIL || "AnytimeHire <noreply@anytimehire.com>";
+const TO_EMAIL = process.env.LEAD_TO_EMAIL || "rishabh.negi@artboxsolutions.com";
 
 type Lead = {
   name?: string;
+  first_name?: string;
+  last_name?: string;
   email?: string;
   phone?: string;
   message?: string;
   company?: string;
   company_size?: string;
+  monthly_volume?: string;
   source?: string;
-  date?: string;
-  time?: string;
-  timezone?: string;
 };
+
+export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   let body: Lead;
@@ -27,62 +28,67 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  if (!body.name || !body.email) {
+  const name =
+    body.name?.trim() ||
+    [body.first_name, body.last_name].filter(Boolean).join(" ").trim() ||
+    "";
+
+  if (!name || !body.email) {
     return NextResponse.json(
       { error: "Name and email are required" },
       { status: 400 },
     );
   }
-
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) {
-    return NextResponse.json(
-      { error: "Invalid email address" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
   }
 
+  const ip = req.headers.get("x-forwarded-for");
+  const ua = req.headers.get("user-agent");
+
   const record = {
-    ...body,
     receivedAt: new Date().toISOString(),
-    ip: req.headers.get("x-forwarded-for") ?? null,
-    ua: req.headers.get("user-agent") ?? null,
+    source: body.source ?? "form",
+    first_name: body.first_name ?? null,
+    last_name: body.last_name ?? null,
+    name,
+    email: body.email,
+    phone: body.phone ?? null,
+    company: body.company ?? null,
+    company_size: body.company_size ?? null,
+    monthly_volume: body.monthly_volume ?? null,
+    message: body.message ?? null,
+    ip,
+    user_agent: ua,
+    payload: body,
   };
 
-  await persistLead(record);
+  // Persist as JSONL
+  await persistLocally(record);
 
-  const subject = subjectFor(record);
+  // Notify via nodemailer (best-effort)
+  const subject = `New AnytimeHire lead — ${name} (${record.source})`;
   const { html, text } = renderEmail(record);
-
-  await Promise.allSettled([
-    sendViaResend({ to: TO_EMAIL, from: FROM_EMAIL, subject, html, text }),
-    sendViaWebhook({ to: TO_EMAIL, subject, ...record }),
-  ]);
+  await sendMail({ to: TO_EMAIL, subject, html, text });
 
   return NextResponse.json({ ok: true });
 }
 
-async function persistLead(record: Record<string, unknown>) {
+async function persistLocally(record: Record<string, unknown>) {
   try {
     const dir = path.join(process.cwd(), "data");
     const file = path.join(dir, "submissions.jsonl");
     await fs.mkdir(dir, { recursive: true });
     await fs.appendFile(file, JSON.stringify(record) + "\n", "utf8");
   } catch (e) {
-    console.error("[contact] failed to persist lead", e);
+    console.error("[contact] local persist failed", e);
   }
-}
-
-function subjectFor(rec: Lead) {
-  if (rec.source === "booking") {
-    return `New AnytimeHire booking — ${rec.name} · ${rec.date} ${rec.time}`;
-  }
-  return `New AnytimeHire lead — ${rec.name} (${rec.source ?? "form"})`;
 }
 
 function renderEmail(rec: Record<string, unknown>) {
   const lines = Object.entries(rec)
-    .filter(([, v]) => v !== undefined && v !== null && v !== "")
-    .map(([k, v]) => `${k}: ${String(v)}`)
+    .filter(([k, v]) => v !== undefined && v !== null && v !== "" && k !== "payload")
+    .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`)
     .join("\n");
 
   const html = `
@@ -90,64 +96,18 @@ function renderEmail(rec: Record<string, unknown>) {
 <html><body style="font-family:Inter,system-ui,sans-serif;background:#faf7f2;padding:24px;color:#0a2922">
   <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #e8e4d8;border-radius:16px;padding:24px">
     <div style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#0c7c5a;font-weight:700">New lead · AnytimeHire</div>
-    <h1 style="margin:8px 0 16px 0;font-size:22px;line-height:1.2">${escape(String(rec.name ?? ""))}</h1>
-    <pre style="white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:13px;background:#f5f1e8;border-radius:10px;padding:14px;color:#1d2939">${escape(lines)}</pre>
+    <h1 style="margin:8px 0 16px 0;font-size:22px;line-height:1.2">${esc(String(rec.name ?? ""))}</h1>
+    <pre style="white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:13px;background:#f5f1e8;border-radius:10px;padding:14px;color:#1d2939">${esc(lines)}</pre>
   </div>
 </body></html>`.trim();
 
   return { html, text: lines };
 }
 
-function escape(s: string) {
+function esc(s: string) {
   return s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
-}
-
-async function sendViaResend(args: {
-  to: string;
-  from: string;
-  subject: string;
-  html: string;
-  text: string;
-}) {
-  const key = process.env.RESEND_API_KEY;
-  if (!key) return;
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify({
-        from: args.from,
-        to: [args.to],
-        subject: args.subject,
-        html: args.html,
-        text: args.text,
-      }),
-    });
-    if (!res.ok) {
-      console.error("[contact] resend failed", res.status, await res.text());
-    }
-  } catch (e) {
-    console.error("[contact] resend error", e);
-  }
-}
-
-async function sendViaWebhook(payload: Record<string, unknown>) {
-  const url = process.env.LEAD_WEBHOOK_URL;
-  if (!url) return;
-  try {
-    await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-  } catch (e) {
-    console.error("[contact] webhook error", e);
-  }
 }
