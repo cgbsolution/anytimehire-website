@@ -6,7 +6,7 @@ import { sendMail, buildIcs } from "@/lib/email";
 import { insertCalendarEvent } from "@/lib/google-calendar";
 import { SLOT_MINUTES, TIMEZONE } from "@/lib/booking";
 
-const TO_EMAIL = process.env.LEAD_TO_EMAIL || "rishabh.negi@artboxsolutions.com";
+const TO_EMAIL = process.env.LEAD_TO_EMAIL || "info@anytimehire.ai";
 const LOCAL_FILE = "data/bookings.jsonl";
 
 type BookingBody = {

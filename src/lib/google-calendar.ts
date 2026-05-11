@@ -103,7 +103,7 @@ export async function insertCalendarEvent(args: {
 
   const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
     calendarId,
-  )}/events?sendUpdates=all`;
+  )}/events?sendUpdates=all&conferenceDataVersion=1`;
 
   const res = await fetch(url, {
     method: "POST",
@@ -116,12 +116,26 @@ export async function insertCalendarEvent(args: {
       description: args.description,
       start: { dateTime: args.startsAt.toISOString(), timeZone: args.timezone },
       end: { dateTime: args.endsAt.toISOString(), timeZone: args.timezone },
-      attendees: [{ email: args.attendeeEmail }],
+      attendees: [
+        { email: args.attendeeEmail, responseStatus: "accepted" },
+      ],
+      // Let any guest with the link join the Meet without waiting on a host.
+      guestsCanInviteOthers: true,
+      guestsCanSeeOtherGuests: true,
+      guestsCanModify: false,
+      anyoneCanAddSelf: false,
       conferenceData: {
         createRequest: {
           requestId: crypto.randomUUID(),
           conferenceSolutionKey: { type: "hangoutsMeet" },
         },
+      },
+      reminders: {
+        useDefault: false,
+        overrides: [
+          { method: "email", minutes: 60 },
+          { method: "popup", minutes: 10 },
+        ],
       },
     }),
   });
