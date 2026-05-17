@@ -1,18 +1,39 @@
 import nodemailer, { type Transporter } from "nodemailer";
 
 let cachedTransport: Transporter | null = null;
+let verifiedOnce = false;
 
 function getTransporter(): Transporter | null {
   if (cachedTransport) return cachedTransport;
   const host = process.env.SMTP_HOST;
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
-  if (!host || !user || !pass) return null;
+  const port = Number(process.env.SMTP_PORT ?? 465);
+  const secure = String(process.env.SMTP_SECURE ?? "true") === "true";
+
+  console.log("[email] SMTP config check", {
+    host: host || "(missing)",
+    port,
+    secure,
+    user: user || "(missing)",
+    pass: pass ? `set (len=${pass.length})` : "(missing)",
+    from:
+      process.env.EMAIL_FROM ||
+      process.env.SMTP_FROM ||
+      `(fallback) "AnytimeHire" <${user ?? "?"}>`,
+  });
+
+  if (!host || !user || !pass) {
+    console.warn(
+      "[email] SMTP not fully configured — at least one of SMTP_HOST / SMTP_USER / SMTP_PASS is missing in .env. Emails will NOT be sent.",
+    );
+    return null;
+  }
 
   cachedTransport = nodemailer.createTransport({
     host,
-    port: Number(process.env.SMTP_PORT ?? 465),
-    secure: String(process.env.SMTP_SECURE ?? "true") === "true",
+    port,
+    secure,
     auth: { user, pass },
   });
   return cachedTransport;
@@ -30,17 +51,46 @@ type SendArgs = {
 /**
  * Send an email via SMTP. Returns true if delivered, false if SMTP isn't
  * configured or sending failed (errors are logged, never thrown — leads are
- * already persisted in Supabase).
+ * already persisted on disk).
  */
 export async function sendMail(args: SendArgs): Promise<boolean> {
   const t = getTransporter();
   if (!t) {
-    console.warn("[email] SMTP not configured — skipping send");
+    console.warn(
+      `[email] skipping send to ${args.to} — SMTP not configured. Subject: "${args.subject}"`,
+    );
     return false;
   }
+
+  // One-time auth/connection probe so the failure mode is obvious.
+  if (!verifiedOnce) {
+    verifiedOnce = true;
+    try {
+      await t.verify();
+      console.log("[email] SMTP verify() OK — server accepted credentials");
+    } catch (e) {
+      const msg = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+      console.error(
+        `[email] SMTP verify() FAILED — connection or auth is broken: ${msg}`,
+      );
+      console.error(
+        "[email] Common fixes: (1) Gmail port 587 needs SMTP_SECURE=false (STARTTLS), port 465 needs SMTP_SECURE=true (SSL). (2) Use an App Password, not the account password. (3) Check the SMTP host is reachable from this machine.",
+      );
+    }
+  }
+
+  const from =
+    process.env.EMAIL_FROM ||
+    process.env.SMTP_FROM ||
+    `"AnytimeHire" <${process.env.SMTP_USER}>`;
+
+  console.log(
+    `[email] → sending to ${args.to} | subject: "${args.subject}" | from: ${from}`,
+  );
+
   try {
-    await t.sendMail({
-      from: process.env.SMTP_FROM || `"AnytimeHire" <${process.env.SMTP_USER}>`,
+    const info = await t.sendMail({
+      from,
       to: args.to,
       cc: args.cc,
       subject: args.subject,
@@ -48,9 +98,14 @@ export async function sendMail(args: SendArgs): Promise<boolean> {
       text: args.text,
       attachments: args.attachments,
     });
+    console.log(
+      `[email] ✓ delivered to ${args.to} | messageId=${info.messageId} | response=${info.response}`,
+    );
     return true;
   } catch (e) {
-    console.error("[email] sendMail failed", e);
+    const msg = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+    console.error(`[email] ✗ FAILED to send to ${args.to} — ${msg}`);
+    if (e instanceof Error && e.stack) console.error(e.stack);
     return false;
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -18,7 +19,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-type Step = "datetime" | "details" | "confirmed";
+type Step = "datetime" | "details";
 
 type Slot = {
   startsAt: string; // ISO
@@ -41,12 +42,6 @@ export function BookingFlow() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [timezone, setTimezone] = useState(TIMEZONES[0].iana);
-  const [confirmation, setConfirmation] = useState<{
-    name: string;
-    email: string;
-    date: string;
-    time: string;
-  } | null>(null);
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -69,11 +64,10 @@ export function BookingFlow() {
           [
             { key: "datetime", label: "Pick a slot" },
             { key: "details", label: "Your details" },
-            { key: "confirmed", label: "Confirmed" },
           ] as const
         ).map((s, i) => {
           const isActive = step === s.key;
-          const stepIdx = step === "datetime" ? 0 : step === "details" ? 1 : 2;
+          const stepIdx = step === "datetime" ? 0 : 1;
           const isDone = i < stepIdx;
           return (
             <li key={s.key} className="flex flex-1 items-center gap-2">
@@ -97,7 +91,7 @@ export function BookingFlow() {
               >
                 {s.label}
               </span>
-              {i < 2 && (
+              {i < 1 && (
                 <span className="ml-1 hidden h-px flex-1 bg-ink-200 sm:block dark:bg-ink-800" />
               )}
             </li>
@@ -110,7 +104,6 @@ export function BookingFlow() {
           selectedDate={selectedDate}
           selectedSlot={selectedSlot}
           timezone={timezone}
-          confirmation={confirmation}
         />
 
         <div className="rounded-3xl border border-ink-200 bg-white p-6 shadow-[0_30px_60px_-30px_rgba(16,24,40,0.18)] dark:border-ink-800 dark:bg-ink-900 sm:p-8">
@@ -149,22 +142,7 @@ export function BookingFlow() {
                   onBack={() => setStep("datetime")}
                   selectedSlot={selectedSlot}
                   timezone={timezone}
-                  onConfirmed={(data) => {
-                    setConfirmation(data);
-                    setStep("confirmed");
-                  }}
                 />
-              </motion.div>
-            )}
-            {step === "confirmed" && confirmation && (
-              <motion.div
-                key="confirmed"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.25 }}
-              >
-                <ConfirmedStep confirmation={confirmation} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -178,12 +156,10 @@ function SummaryCard({
   selectedDate,
   selectedSlot,
   timezone,
-  confirmation,
 }: {
   selectedDate: Date | null;
   selectedSlot: Slot | null;
   timezone: string;
-  confirmation: { name: string; email: string; date: string; time: string } | null;
 }) {
   const tzLabel =
     TIMEZONES.find((t) => t.iana === timezone)?.label ?? timezone;
@@ -215,11 +191,9 @@ function SummaryCard({
         </li>
         <li className="flex items-center gap-2.5 text-ink-700 dark:text-ink-300">
           <CalendarDays className="h-4 w-4 text-brand-600" />
-          {confirmation
-            ? `${confirmation.date} · ${confirmation.time}`
-            : selectedDate && selectedSlot
-              ? `${formatLong(selectedDate)} · ${selectedSlot.label}`
-              : "Pick a slot →"}
+          {selectedDate && selectedSlot
+            ? `${formatLong(selectedDate)} · ${selectedSlot.label}`
+            : "Pick a slot →"}
         </li>
       </ul>
 
@@ -465,18 +439,12 @@ function DetailsStep({
   onBack,
   selectedSlot,
   timezone,
-  onConfirmed,
 }: {
   onBack: () => void;
   selectedSlot: Slot;
   timezone: string;
-  onConfirmed: (data: {
-    name: string;
-    email: string;
-    date: string;
-    time: string;
-  }) => void;
 }) {
+  const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -510,15 +478,15 @@ function DetailsStep({
       }
 
       const startsAtDate = new Date(selectedSlot.startsAt);
-      onConfirmed({
+      const qs = new URLSearchParams({
         name: data.name,
         email: data.email,
         date: formatLong(startsAtDate),
         time: selectedSlot.label,
-      });
+      }).toString();
+      router.push(`/thank-you-booking?${qs}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
       setSubmitting(false);
     }
   }
@@ -593,60 +561,6 @@ function DetailsStep({
         .
       </p>
     </form>
-  );
-}
-
-function ConfirmedStep({
-  confirmation,
-}: {
-  confirmation: { name: string; email: string; date: string; time: string };
-}) {
-  return (
-    <div className="text-center">
-      <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: "spring", duration: 0.6 }}
-        className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 ring-1 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/30"
-      >
-        <Check className="h-8 w-8" />
-      </motion.div>
-      <h3 className="mt-6 font-display text-3xl font-semibold tracking-tight text-ink-900 dark:text-ink-50">
-        You're booked, {confirmation.name.split(" ")[0]}.
-      </h3>
-      <p className="mt-3 text-[15px] text-ink-600 dark:text-ink-400">
-        We've sent a calendar invite and Google Meet link to{" "}
-        <span className="font-semibold text-ink-900 dark:text-ink-100">
-          {confirmation.email}
-        </span>
-        .
-      </p>
-
-      <div className="mx-auto mt-8 inline-flex flex-col items-stretch gap-2.5 rounded-2xl border border-ink-200 bg-cream-50 p-5 text-left text-[13px] dark:border-ink-800 dark:bg-ink-950">
-        <div className="flex items-center gap-2.5 text-ink-800 dark:text-ink-200">
-          <CalendarDays className="h-4 w-4 text-brand-600" />
-          <span className="font-semibold">{confirmation.date}</span>
-        </div>
-        <div className="flex items-center gap-2.5 text-ink-800 dark:text-ink-200">
-          <Clock className="h-4 w-4 text-brand-600" />
-          <span className="font-semibold">{confirmation.time}</span>
-        </div>
-        <div className="flex items-center gap-2.5 text-ink-800 dark:text-ink-200">
-          <Video className="h-4 w-4 text-brand-600" />
-          Google Meet · link in your invite
-        </div>
-      </div>
-
-      <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-        <Link
-          href="/"
-          className="inline-flex h-11 items-center gap-2 rounded-full bg-ink-900 px-5 text-[14px] font-semibold text-white transition-all hover:bg-ink-800 dark:bg-ink-50 dark:text-ink-900 dark:hover:bg-white"
-        >
-          Back to home
-          <ArrowRight className="h-4 w-4" />
-        </Link>
-      </div>
-    </div>
   );
 }
 

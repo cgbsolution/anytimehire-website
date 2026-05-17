@@ -1,8 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowRight, Mail, Phone, ShieldCheck, CalendarDays } from "lucide-react";
+import {
+  ArrowRight,
+  Mail,
+  Phone,
+  ShieldCheck,
+  CalendarDays,
+} from "lucide-react";
 import Link from "next/link";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 
@@ -78,8 +85,8 @@ export function ContactSection() {
 }
 
 function ContactForm() {
+  const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -87,7 +94,10 @@ function ContactForm() {
     setSubmitting(true);
     setError(null);
     const form = e.currentTarget;
-    const data = Object.fromEntries(new FormData(form).entries());
+    const data = Object.fromEntries(new FormData(form).entries()) as Record<
+      string,
+      string
+    >;
 
     try {
       const res = await fetch("/api/contact", {
@@ -99,11 +109,13 @@ function ContactForm() {
         const j = await res.json().catch(() => ({}));
         throw new Error(j.error || "Something went wrong");
       }
-      setDone(true);
-      form.reset();
+      const qs = new URLSearchParams({
+        name: data.name ?? "",
+        email: data.email ?? "",
+      }).toString();
+      router.push(`/thank-you?${qs}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
       setSubmitting(false);
     }
   }
@@ -121,25 +133,6 @@ function ContactForm() {
         className="absolute -inset-6 -z-10 rounded-[40px] bg-gradient-to-br from-brand-200/40 via-brand-100/30 to-transparent blur-2xl dark:from-brand-500/20 dark:via-brand-500/10"
       />
       <div className="rounded-3xl border border-ink-200 bg-white p-7 shadow-[0_30px_60px_-30px_rgba(16,24,40,0.18)] dark:border-ink-800 dark:bg-ink-900 sm:p-8">
-        {done ? (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center dark:border-emerald-500/30 dark:bg-emerald-500/10">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 text-white">
-              <ShieldCheck className="h-6 w-6" />
-            </div>
-            <p className="mt-4 font-display text-lg font-semibold text-emerald-900 dark:text-emerald-200">
-              Got it. We'll be in touch within 2 hours.
-            </p>
-            <p className="mt-2 text-sm text-emerald-800/80 dark:text-emerald-300/80">
-              A confirmation has been sent to your inbox.
-            </p>
-            <button
-              onClick={() => setDone(false)}
-              className="mt-5 text-xs font-medium text-emerald-800 underline-offset-4 hover:underline dark:text-emerald-200"
-            >
-              Send another message
-            </button>
-          </div>
-        ) : (
           <form onSubmit={onSubmit} className="space-y-4">
             <div>
               <h3 className="font-display text-xl font-semibold tracking-tight text-ink-900 dark:text-ink-50">
@@ -213,7 +206,6 @@ function ContactForm() {
               .
             </p>
           </form>
-        )}
       </div>
     </motion.div>
   );

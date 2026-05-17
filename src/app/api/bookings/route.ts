@@ -6,7 +6,9 @@ import { sendMail, buildIcs } from "@/lib/email";
 import { insertCalendarEvent } from "@/lib/google-calendar";
 import { SLOT_MINUTES, TIMEZONE } from "@/lib/booking";
 
-const TO_EMAIL = process.env.LEAD_TO_EMAIL || "info@anytimehire.ai";
+// Read at call-time, not at module-load, so a late-loaded .env still works.
+const getAdminEmail = () =>
+  process.env.LEAD_TO_EMAIL || "info@anytimehire.ai";
 const LOCAL_FILE = "data/bookings.jsonl";
 
 type BookingBody = {
@@ -96,7 +98,9 @@ export async function POST(req: Request) {
 
   const bookingId = persistResult.id!;
 
-  // Best-effort Google Calendar event creation
+  // Best-effort Google Calendar event with a Meet link. If the integration
+  // isn't configured, we still email the .ics so the booking lands on the
+  // attendee's calendar — they just won't get an auto-generated Meet link.
   let googleEventId: string | null = null;
   try {
     googleEventId = await insertCalendarEvent({
@@ -114,6 +118,8 @@ export async function POST(req: Request) {
     console.error("[bookings] gcal insert failed", e);
   }
 
+  const adminEmail = getAdminEmail();
+
   // Email both sides with .ics attachment
   const ics = buildIcs({
     uid: `booking-${bookingId}@anytimehire`,
@@ -121,7 +127,7 @@ export async function POST(req: Request) {
     endsAt,
     summary: "AnytimeHire 30-min demo",
     description: `Booking from ${body.name} (${body.email})`,
-    organizerEmail: TO_EMAIL,
+    organizerEmail: adminEmail,
     attendeeEmail: body.email,
     location: "Google Meet — link will be in the calendar invite",
   });
@@ -170,9 +176,13 @@ Where: Google Meet — link in the attached invite.
 
 Reply if you need to reschedule.`;
 
-  await Promise.allSettled([
+  console.log(
+    `[bookings] new booking | id=${bookingId} | name="${body.name}" | email=${body.email} | when="${dateLabel}" | gcal=${googleEventId ?? "skipped"}`,
+  );
+
+  const mailResults = await Promise.allSettled([
     sendMail({
-      to: TO_EMAIL,
+      to: adminEmail,
       subject: `New booking — ${body.name} · ${dateLabel}`,
       html: adminHtml,
       text: adminText,
@@ -186,6 +196,11 @@ Reply if you need to reschedule.`;
       attachments: [attachment],
     }),
   ]);
+  const adminOk = mailResults[0].status === "fulfilled" && mailResults[0].value;
+  const guestOk = mailResults[1].status === "fulfilled" && mailResults[1].value;
+  console.log(
+    `[bookings] email results | admin(${adminEmail})=${adminOk ? "OK" : "FAIL"} | guest(${body.email})=${guestOk ? "OK" : "FAIL"}`,
+  );
 
   return NextResponse.json({ ok: true, id: bookingId, googleEventId });
 }

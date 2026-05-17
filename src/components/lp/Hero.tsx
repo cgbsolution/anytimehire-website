@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -10,7 +11,6 @@ import {
   Lock,
   Sparkles,
   Play,
-  ShieldCheck,
 } from "lucide-react";
 
 const STATS = [
@@ -177,8 +177,8 @@ export function Hero() {
 }
 
 function BookDemoCard() {
+  const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -200,11 +200,13 @@ function BookDemoCard() {
         const j = await res.json().catch(() => ({}));
         throw new Error(j.error || "Something went wrong");
       }
-      setDone(true);
-      form.reset();
+      const qs = new URLSearchParams({
+        name,
+        email: data.email ?? "",
+      }).toString();
+      router.push(`/thank-you?${qs}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
       setSubmitting(false);
     }
   }
@@ -256,23 +258,7 @@ function BookDemoCard() {
           </div>
         </div>
 
-        {done ? (
-          <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-center dark:border-emerald-500/30 dark:bg-emerald-500/10">
-            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-white">
-              <ShieldCheck className="h-5 w-5" />
-            </div>
-            <p className="mt-3 font-display text-base font-semibold text-emerald-900 dark:text-emerald-200">
-              You're in. We'll reach out within 2 business hours.
-            </p>
-            <button
-              onClick={() => setDone(false)}
-              className="mt-3 text-xs font-medium text-emerald-800 underline-offset-4 hover:underline dark:text-emerald-200"
-            >
-              Submit another request
-            </button>
-          </div>
-        ) : (
-          <form onSubmit={onSubmit} className="mt-5 space-y-3.5">
+        <form onSubmit={onSubmit} className="mt-5 space-y-3.5">
             <div className="grid grid-cols-2 gap-3">
               <Field label="First name" name="first_name" placeholder="Priya" required />
               <Field label="Last name" name="last_name" placeholder="Sharma" required />
@@ -330,7 +316,6 @@ function BookDemoCard() {
               <span>Data stays in India</span>
             </div>
           </form>
-        )}
       </div>
     </div>
   );

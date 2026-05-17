@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowRight, ShieldCheck, Sparkles, CalendarDays } from "lucide-react";
 import Link from "next/link";
 
@@ -71,8 +72,8 @@ export function FinalCTA() {
 }
 
 function ContactForm() {
+  const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -80,7 +81,10 @@ function ContactForm() {
     setSubmitting(true);
     setError(null);
     const form = e.currentTarget;
-    const data = Object.fromEntries(new FormData(form).entries());
+    const data = Object.fromEntries(new FormData(form).entries()) as Record<
+      string,
+      string
+    >;
 
     try {
       const res = await fetch("/api/contact", {
@@ -92,36 +96,15 @@ function ContactForm() {
         const j = await res.json().catch(() => ({}));
         throw new Error(j.error || "Something went wrong");
       }
-      setDone(true);
-      form.reset();
+      const qs = new URLSearchParams({
+        name: data.name ?? "",
+        email: data.email ?? "",
+      }).toString();
+      router.push(`/thank-you?${qs}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
       setSubmitting(false);
     }
-  }
-
-  if (done) {
-    return (
-      <div className="rounded-3xl border border-white/20 bg-white/10 p-8 text-center text-white backdrop-blur">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white text-brand-700">
-          <ShieldCheck className="h-6 w-6" />
-        </div>
-        <p className="mt-4 font-display text-xl font-semibold">
-          Got it. We'll reach out within 24 hours.
-        </p>
-        <p className="mt-2 text-sm text-white/80">
-          A confirmation has been sent to your inbox. Want to skip the wait?
-        </p>
-        <Link
-          href="/booking"
-          className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-brand-700 hover:bg-brand-50"
-        >
-          <CalendarDays className="h-4 w-4" />
-          Book a slot now
-        </Link>
-      </div>
-    );
   }
 
   return (
