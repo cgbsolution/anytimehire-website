@@ -52,7 +52,7 @@ const TIERS = [
       "On-prem / VPC deployment available",
       "Roadmap influence & co-build access",
     ],
-    cta: "Talk to Sales",
+    cta: "Get a custom quote",
     href: "#contact",
     accent: false,
   },

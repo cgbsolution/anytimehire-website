@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider, THEME_INIT_SCRIPT } from "@/components/theme/ThemeProvider";
+import { WhatsAppButton } from "@/components/whatsapp/WhatsAppButton";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -85,6 +86,7 @@ y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
           />
         </noscript>
         <ThemeProvider>{children}</ThemeProvider>
+        <WhatsAppButton />
       </body>
     </html>
   );

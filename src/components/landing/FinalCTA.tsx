@@ -46,7 +46,7 @@ export function FinalCTA() {
                 href="#"
                 className="inline-flex items-center gap-2 rounded-full px-6 py-3.5 text-sm font-medium text-white/80 ring-1 ring-white/15 transition-colors hover:bg-white/5 hover:text-white"
               >
-                Talk to sales
+                Let&apos;s talk
               </Link>
             </div>
           </div>

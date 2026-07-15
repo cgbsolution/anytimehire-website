@@ -82,7 +82,7 @@ export function SiteNav() {
 
         <div className="flex items-center gap-1.5">
           <Link
-            href="/login"
+            href="https://app.anytimehire.ai/"
             className="hidden rounded-full px-3.5 py-2 text-sm text-ink-700 transition-colors hover:bg-ink-100 hover:text-ink-900 dark:text-ink-300 dark:hover:bg-ink-800 dark:hover:text-ink-50 sm:inline-flex"
           >
             Login
@@ -134,7 +134,7 @@ export function SiteNav() {
                 );
               })}
               <Link
-                href="/login"
+                href="https://app.anytimehire.ai/"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="rounded-full px-3.5 py-2 text-sm text-ink-700 transition-colors hover:bg-ink-100 hover:text-ink-900 dark:text-ink-300 dark:hover:bg-ink-800 dark:hover:text-ink-50"
               >
